@@ -35,6 +35,18 @@ const MM_PROPS = { game_mode: 'classic' }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** UUID v4 — uses crypto.randomUUID() on HTTPS/localhost, falls back to
+ *  Math.random() on plain HTTP (crypto.randomUUID requires a secure context). */
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+  })
+}
+
 /** Stable device ID — created once per browser tab, persisted in sessionStorage.
  *  sessionStorage is per-tab so two windows get different IDs (required for
  *  matchmaking to pair them as separate users) and survives reloads within the
@@ -43,7 +55,7 @@ function getDeviceId() {
   const key = 'ttt_device_id'
   let id = sessionStorage.getItem(key)
   if (!id) {
-    id = crypto.randomUUID()
+    id = generateUUID()
     sessionStorage.setItem(key, id)
   }
   return id
