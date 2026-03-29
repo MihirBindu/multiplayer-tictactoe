@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Nakama server configuration — local / development
+# Reference: https://heroiclabs.com/docs/nakama/getting-started/configuration/
+#
+# IMPORTANT: Do NOT store secrets here.
+#            Secrets (DB password, server key) are in .env and injected via
+#            the --database.address CLI flag in docker-compose.yml.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: "tictactoe-nakama"          # human-readable node name (shown in console)
+
+# ── Logger ───────────────────────────────────────────────────────────────────
+logger:
+  level:  "INFO"                  # DEBUG | INFO | WARN | ERROR
+  stdout: true
+  # file: "/nakama/data/logs/nakama.log"  # uncomment to persist logs
+
+# ── Session ──────────────────────────────────────────────────────────────────
+session:
+  token_expiry_sec: 7200          # 2 hours; adjust for production
+  refresh_token_expiry_sec: 3600  # refresh window inside the expiry
+
+# ── Socket ───────────────────────────────────────────────────────────────────
+socket:
+  server_key:   "defaultkey"      # OVERRIDE in production via env / secrets
+  port:         7350              # HTTP API + WebSocket upgrade
+  protocol:     "tcp"
+  max_message_size_bytes: 4096
+  ping_period_ms:         15000
+  pong_wait_ms:           25000
+  write_wait_ms:          5000
+
+# ── gRPC API ─────────────────────────────────────────────────────────────────
+api:
+  port:         7349
+
+# ── Developer Console ────────────────────────────────────────────────────────
+console:
+  port:         7351
+  # username / password defaults are admin / admin; change before cloud deploy
+
+# ── Runtime (JS module loader) ───────────────────────────────────────────────
+runtime:
+  path: "/nakama/data/modules"                          # Nakama scans this dir
+  js_entrypoint: "main.js"                              # relative to runtime.path
+  js_min_count:  2                                      # minimum JS pool workers
+  js_max_count:  8                                      # maximum JS pool workers
+
+# ── Matchmaker ───────────────────────────────────────────────────────────────
+# The match name ("tictactoe"), min_players (2), and max_players (2) are
+# enforced by the JS matchmakerMatched hook and by client calls to
+# socket.addMatchmaker("*", 2, 2, { game_mode: "classic" }).
+# No per-game config is required here; only global matchmaker limits.
+matchmaker:
+  max_tickets:  50  # max concurrent matchmaker tickets per user
+  interval_sec: 1   # how often the matchmaker runs (default 15); 1 s is fine for dev

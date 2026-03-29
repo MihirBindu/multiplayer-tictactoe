@@ -1,0 +1,17 @@
+# ── Secrets (never commit) ────────────────────────────────────────────────────
+nakama/.env
+.env
+.env.local
+
+# ── Frontend build artifacts ──────────────────────────────────────────────────
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+
+# ── OS / editor noise ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/

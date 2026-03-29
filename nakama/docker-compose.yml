@@ -1,0 +1,69 @@
+# ─── Services ────────────────────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tictactoe-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"           # only exposed for local inspection; block in prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Nakama DB migration (runs once then exits) ───────────────────────────────
+  nakama-migrate:
+    image: heroiclabs/nakama:3.24.2
+    container_name: tictactoe-migrate
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up
+        --database.address postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Nakama server ────────────────────────────────────────────────────────────
+  nakama:
+    image: heroiclabs/nakama:3.24.2
+    container_name: tictactoe-nakama
+    restart: unless-stopped
+    env_file: .env
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama
+        --config /nakama/data/local.yml
+        --database.address postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    volumes:
+      - ./local.yml:/nakama/data/local.yml:ro   # server config
+      - ./modules:/nakama/data/modules:ro        # JS runtime modules
+    ports:
+      - "7349:7349"   # gRPC API
+      - "7350:7350"   # HTTP API  (REST + WebSocket)
+      - "7351:7351"   # Developer console
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nakama-migrate:
+        condition: service_completed_successfully
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  postgres-data:
+    driver: local

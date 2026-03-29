@@ -1,0 +1,109 @@
+# Full-stack production compose — one command starts everything.
+#
+# Usage:
+#   1. cp nakama/.env.example .env          # create root .env (one-time); edit secrets
+#   2. cp nakama/.env.example nakama/.env   # also needed for backend-only dev compose
+#   3. docker compose up --build            # build frontend + start all services
+#   4. Open http://localhost
+#
+# For backend-only development use nakama/docker-compose.yml instead.
+# That compose exposes Nakama on port 7350 directly so test scripts work.
+#
+# Docker Compose resolves ${VAR} in this file from the root-level .env file
+# (auto-loaded from the directory where docker compose is run).
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tictactoe-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Port NOT exposed — only reachable within the Docker network in production.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Nakama DB migration (runs once then exits) ────────────────────────────────
+  nakama-migrate:
+    image: heroiclabs/nakama:3.24.2
+    container_name: tictactoe-migrate
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up
+        --database.address postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Nakama server ────────────────────────────────────────────────────────────
+  nakama:
+    image: heroiclabs/nakama:3.24.2
+    container_name: tictactoe-nakama
+    restart: unless-stopped
+    env_file: .env
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama
+        --config /nakama/data/local.yml
+        --database.address postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+        --socket.server_key ${NAKAMA_SERVER_KEY:-defaultkey}
+    volumes:
+      - ./nakama/local.yml:/nakama/data/local.yml:ro
+      - ./nakama/modules:/nakama/data/modules:ro
+    # Ports NOT exposed to host — Nginx is the only public entry point.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nakama-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # The heroiclabs/nakama image ships with bash but not wget/curl.
+      # bash's /dev/tcp built-in is the lightest way to probe TCP port 7350.
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/7350"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ── Frontend: Nginx serves the built React app + proxies Nakama ───────────────
+  #
+  # All browser traffic goes through Nginx:
+  #   /         → static files (the Vite build)
+  #   /v2/...   → http://nakama:7350/v2/...   (Nakama HTTP API)
+  #   /ws       → ws://nakama:7350/ws          (Nakama WebSocket)
+  #
+  # VITE_NK_KEY is baked into the JS bundle; it must match --socket.server_key.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_NK_KEY: ${NAKAMA_SERVER_KEY:-defaultkey}
+    container_name: tictactoe-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"         # the only port exposed to the host / internet
+    depends_on:
+      nakama:
+        condition: service_healthy
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  postgres-data:
+    driver: local
