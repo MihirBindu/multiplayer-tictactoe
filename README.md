@@ -8,8 +8,9 @@ A production-ready, server-authoritative multiplayer Tic-Tac-Toe game built with
 
 | | URL |
 |---|---|
-| **Game** | `http://<VM_PUBLIC_IP>` *(update after deploying)* |
-| **Nakama API** | `http://<VM_PUBLIC_IP>/v2/` |
+| **Game** | http://136.115.248.132 |
+| **Nakama API** | http://136.115.248.132/v2/ |
+| **GitHub** | https://github.com/MihirBindu/multiplayer-tictactoe |
 
 ---
 
