@@ -197,7 +197,9 @@ export default function TicTacToe() {
   const handleCreateRoom = useCallback(async () => {
     try {
       const resp = await clientRef.current.rpc(sessionRef.current, 'create_match', '{}')
-      const { match_id } = JSON.parse(resp.payload)
+      // resp.payload may be a JSON string or already-parsed object depending on SDK version
+      const data = typeof resp.payload === 'string' ? JSON.parse(resp.payload) : resp.payload
+      const { match_id } = data
       // Set ref + state before await so handleMove is never stale
       matchIdRef.current = match_id
       setMatchId(match_id)
@@ -216,7 +218,8 @@ export default function TicTacToe() {
   const handleBrowse = useCallback(async () => {
     try {
       const resp = await clientRef.current.rpc(sessionRef.current, 'list_matches', '{}')
-      const { matches } = JSON.parse(resp.payload)
+      const data = typeof resp.payload === 'string' ? JSON.parse(resp.payload) : resp.payload
+      const { matches } = data
       setRoomList(matches)
     } catch (e) {
       setError(e.message)
