@@ -31,9 +31,16 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 # ── Step 1: OS update ─────────────────────────────────────────────────────────
 info "Updating system packages..."
-sudo apt-get update -qq
-sudo apt-get upgrade -y -qq
-sudo apt-get install -y -qq git curl ca-certificates gnupg lsb-release
+
+# Suppress the "Daemons using outdated libraries" ncurses dialog that appears
+# during apt-get on Ubuntu 22.04 when needrestart is installed.
+sudo mkdir -p /etc/needrestart/conf.d
+echo "\$nrconf{restart} = 'a';" | sudo tee /etc/needrestart/conf.d/autorestart.conf > /dev/null
+
+export DEBIAN_FRONTEND=noninteractive
+sudo -E apt-get update -qq
+sudo -E apt-get upgrade -y -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+sudo -E apt-get install -y -qq git curl ca-certificates gnupg lsb-release
 
 # ── Step 2: Install Docker ────────────────────────────────────────────────────
 if command -v docker &>/dev/null; then
@@ -48,8 +55,8 @@ else
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
     https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo -E apt-get update -qq
+  sudo -E apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
   sudo usermod -aG docker "$USER"
   info "Docker installed: $(sudo docker --version)"
 fi
