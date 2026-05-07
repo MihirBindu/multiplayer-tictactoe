@@ -127,18 +127,6 @@ export default function TicTacToe() {
     }
   }, [phase, isMyTurn, gs, myMark])
 
-  // ── Keyboard shortcuts: numpad 1–9 for moves ───────────────────────────────
-  useEffect(() => {
-    if (phase !== 'playing' || !isMyTurn) return
-    const handler = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      const idx = KEY_TO_CELL[e.key]
-      if (idx !== undefined) handleMove(idx)
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [phase, isMyTurn, handleMove]) // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Prevent pull-to-refresh during an active game ─────────────────────────
   useEffect(() => {
     if (phase !== 'playing') return
@@ -326,6 +314,19 @@ export default function TicTacToe() {
       mid, OP_STATE, JSON.stringify({ type: 'move', index })
     )
   }, [isMyTurn, gs])
+
+  // ── Keyboard shortcuts: numpad 1–9 for moves ───────────────────────────────
+  // Placed after handleMove so the const is initialized before it's referenced.
+  useEffect(() => {
+    if (phase !== 'playing' || !isMyTurn) return
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      const idx = KEY_TO_CELL[e.key]
+      if (idx !== undefined) handleMove(idx)
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [phase, isMyTurn, handleMove])
 
   const handlePlayAgain = useCallback(() => {
     matchIdRef.current = null
