@@ -1,8 +1,7 @@
 /* tictactoe.css — mobile-first game UI
-   Inherits all design tokens from index.css (:root variables).
-   No game-logic knowledge; pure presentation. */
+   Inherits design tokens from index.css (:root variables). */
 
-/* ── Root container — fills the #root flex column ────────────────────────── */
+/* ── Root container ──────────────────────────────────────────────────────────── */
 .ttt {
   flex: 1;
   display: flex;
@@ -11,10 +10,11 @@
   justify-content: center;
   gap: 1.25rem;
   padding: 1.5rem 1rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
-/* ── Spinner ──────────────────────────────────────────────────────────────── */
+/* ── Spinner ─────────────────────────────────────────────────────────────────── */
 .ttt-spinner {
   width: 2.5rem;
   height: 2.5rem;
@@ -29,7 +29,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Typography ───────────────────────────────────────────────────────────── */
+/* ── Typography ──────────────────────────────────────────────────────────────── */
 .ttt-title {
   font-size: 2.5rem;
   font-weight: 700;
@@ -44,6 +44,7 @@
   color: var(--text-h);
   text-align: center;
   margin: 0;
+  transition: opacity var(--dur-fast) ease;
 }
 
 .ttt-status-end {
@@ -57,19 +58,65 @@
   margin: 0;
 }
 
+/* ── Error screen ────────────────────────────────────────────────────────────── */
+.ttt-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(90vw, 320px);
+  text-align: center;
+}
+
 .ttt-error {
   color: #ef4444;
   text-align: center;
   margin: 0;
   font-weight: 500;
+  font-size: 1rem;
 }
 
-/* ── Board ────────────────────────────────────────────────────────────────── */
+.ttt-error-detail {
+  font-size: 0.72rem;
+  color: var(--text);
+  font-family: var(--mono);
+  background: var(--code-bg);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  word-break: break-all;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ttt-error-toggle {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-family: inherit;
+}
+
+.ttt-error-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+/* ── Board ───────────────────────────────────────────────────────────────────── */
 .ttt-board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   width: min(90vw, 320px);
+}
+
+/* Dim board when not your turn — keep focus traversable (no pointer-events: none) */
+.ttt-board[data-disabled="true"] {
+  opacity: 0.65;
 }
 
 .ttt-cell {
@@ -86,10 +133,14 @@
   font-family: var(--mono);
   cursor: pointer;
   color: var(--text-h);
-  transition: background 0.12s, border-color 0.12s, transform 0.08s;
-  /* prevent text flashing on rapid clicks */
+  transition: background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast), transform 80ms;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.ttt-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .ttt-cell:hover:not(:disabled):not([data-mark]) {
@@ -102,23 +153,56 @@
   transform: scale(0.97);
 }
 
+/* Mark colors — X = brand purple, O = teal, equally saturated */
 .ttt-cell[data-mark="X"] {
   color: var(--accent);
   cursor: default;
 }
 
 .ttt-cell[data-mark="O"] {
-  color: var(--text-h);
+  color: var(--color-o);
   cursor: default;
 }
 
-/* Dim entire board when it is not this player's turn or game is over */
-.ttt-board[data-disabled="true"] {
-  opacity: 0.65;
-  pointer-events: none;
+/* Winning cells glow + scale */
+.ttt-cell--winner[data-mark="X"] {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-border);
+  transform: scale(1.06);
 }
 
-/* ── Player labels ────────────────────────────────────────────────────────── */
+.ttt-cell--winner[data-mark="O"] {
+  background: var(--color-o-soft);
+  border-color: var(--color-o-border);
+  box-shadow: 0 0 0 3px var(--color-o-border);
+  transform: scale(1.06);
+}
+
+/* Piece-drop animation — plays when data-mark first appears on a cell */
+@media (prefers-reduced-motion: no-preference) {
+  .ttt-cell[data-mark] {
+    animation: ttt-pop 150ms var(--ease-out) both;
+  }
+
+  @keyframes ttt-pop {
+    from { transform: scale(0.4); opacity: 0; }
+    70%  { transform: scale(1.1); }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .ttt-cell--winner[data-mark] {
+    animation: ttt-win 300ms var(--ease-out) 80ms both;
+  }
+
+  @keyframes ttt-win {
+    from { transform: scale(1); }
+    50%  { transform: scale(1.12); }
+    to   { transform: scale(1.06); }
+  }
+}
+
+/* ── Player labels ───────────────────────────────────────────────────────────── */
 .ttt-players {
   display: flex;
   align-items: center;
@@ -127,17 +211,39 @@
 }
 
 .ttt-player {
+  position: relative;
   padding: 0.2rem 0.65rem;
   border-radius: 2rem;
   border: 1.5px solid var(--border);
   font-weight: 600;
   color: var(--text-h);
+  transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 
-.ttt-player-x {
+/* Mark-specific colors — independent of "you" indicator */
+.ttt-player--mark-x {
   border-color: var(--accent-border);
   color: var(--accent);
   background: var(--accent-bg);
+}
+
+.ttt-player--mark-o {
+  border-color: var(--color-o-border);
+  color: var(--color-o);
+  background: var(--color-o-soft);
+}
+
+/* Green dot = "this is you", decoupled from which mark you got */
+.ttt-player--me::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 1.5px solid var(--bg);
 }
 
 .ttt-player-vs {
@@ -145,15 +251,125 @@
   color: var(--text);
 }
 
-/* ── Lobby layout ─────────────────────────────────────────────────────────── */
+/* ── Lobby layout ────────────────────────────────────────────────────────────── */
 .ttt-lobby-actions {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: min(90vw, 260px);
+  width: min(90vw, 280px);
 }
 
-/* ── Room list ────────────────────────────────────────────────────────────── */
+.ttt-lobby-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.ttt-lobby-caption {
+  font-size: 0.775rem;
+  color: var(--text);
+  text-align: center;
+}
+
+/* ── Room code card ──────────────────────────────────────────────────────────── */
+.ttt-room-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--code-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 0.75rem;
+  width: min(90vw, 300px);
+  box-sizing: border-box;
+}
+
+.ttt-room-card-label {
+  font-size: 0.72rem;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+
+.ttt-room-code {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-h);
+}
+
+.ttt-room-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ttt-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1.5px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  font-family: inherit;
+  line-height: 1;
+}
+
+.ttt-copy-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.ttt-copy-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ttt-copy-btn--copied {
+  background: #10b981;
+  border-color: #10b981;
+  color: #fff;
+}
+
+.ttt-copy-btn--copied:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+/* ── Room list ───────────────────────────────────────────────────────────────── */
+.ttt-room-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(90vw, 320px);
+}
+
+.ttt-room-list-meta {
+  font-size: 0.75rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ttt-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
 .ttt-room-list {
   display: flex;
   flex-direction: column;
@@ -169,9 +385,24 @@
   text-align: center;
 }
 
-/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.ttt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.5rem 1rem;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.ttt-empty-state-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
 .ttt-btn {
-  padding: 0.7rem 1.5rem;
+  padding: 0.85rem 1.5rem;
   border-radius: 0.5rem;
   border: 2px solid var(--accent-border);
   background: var(--accent-bg);
@@ -180,7 +411,9 @@
   font-weight: 600;
   cursor: pointer;
   line-height: 1;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--dur-base), color var(--dur-base), border-color var(--dur-base), transform 80ms;
+  font-family: inherit;
+  width: 100%;
 }
 
 .ttt-btn:hover {
@@ -189,11 +422,27 @@
   border-color: var(--accent);
 }
 
+.ttt-btn:active {
+  transform: scale(0.98);
+}
+
 .ttt-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
+/* Filled primary — for Auto Match */
+.ttt-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.ttt-btn-primary:hover {
+  opacity: 0.88;
+}
+
+/* Outlined secondary — for Create Room */
 .ttt-btn-secondary {
   border-color: var(--border);
   background: transparent;
@@ -206,9 +455,75 @@
   color: var(--accent);
 }
 
-/* ── Larger screens ───────────────────────────────────────────────────────── */
+/* Ghost text — for Browse Rooms */
+.ttt-btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.ttt-btn-ghost:hover {
+  color: var(--text-h);
+  background: var(--code-bg);
+  border-color: transparent;
+}
+
+/* ── Socket status pill ──────────────────────────────────────────────────────── */
+.ttt-socket-status {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.ttt-socket-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ttt-socket-status--offline   .ttt-socket-dot { background: #ef4444; }
+
+/* ── Keyboard hint ───────────────────────────────────────────────────────────── */
+.ttt-kbd-hint {
+  font-size: 0.78rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ttt-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-h);
+  line-height: 1.4;
+}
+
+/* ── Larger screens ──────────────────────────────────────────────────────────── */
 @media (min-width: 600px) {
-  .ttt-title    { font-size: 3rem; }
-  .ttt-board    { width: min(70vw, 360px); }
-  .ttt-cell     { font-size: 2.75rem; }
+  .ttt-title { font-size: 3rem; }
+  .ttt-board { width: min(70vw, 360px); }
+  .ttt-cell  { font-size: 2.75rem; }
 }
